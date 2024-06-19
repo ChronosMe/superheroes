@@ -14,17 +14,24 @@ class InfoWithButton extends StatelessWidget {
   final double imageWidth;
   final double imageTopPadding;
 
-  const InfoWithButton({super.key, required this.title, required this.subtitle, required this.buttonText, required this.assetImage, required this.imageHeight, required this.imageWidth, required this.imageTopPadding});
+  const InfoWithButton(
+      {super.key,
+      required this.title,
+      required this.subtitle,
+      required this.buttonText,
+      required this.assetImage,
+      required this.imageHeight,
+      required this.imageWidth,
+      required this.imageTopPadding});
 
   @override
   Widget build(BuildContext context) {
-    return Align(
+    return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Stack(
-            alignment: Alignment.center,
+            alignment: Alignment.topCenter,
             children: [
               Container(
                 height: 108,

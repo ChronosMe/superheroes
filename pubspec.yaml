@@ -19,11 +19,13 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  network_image_mock: ^2.1.1
 
   flutter_lints: ^3.0.0
 
 flutter:
   assets:
+    - google_fonts/
     - assets/icons/
     - assets/images/
 
