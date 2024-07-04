@@ -17,13 +17,27 @@ class MainBloc {
     stateSubject.add(MainPageState.noFavorites);
 
     searchSubscription?.cancel();
-    textSubscription = currentTextSubject.listen((value) {
-      if (value.isEmpty) {
+    textSubscription =
+        Rx.combineLatest2<String, List<SuperheroInfo>, MainPageStateInfo>(
+                currentTextSubject
+                    .distinct()
+                    .debounceTime(const Duration(milliseconds: 500)),
+                favoriteSuperheroesSubject,
+                (serchedText, favorites) =>
+                    MainPageStateInfo(serchedText, favorites.isNotEmpty))
+            .listen((value) {
+      print("CHANGED $value");
+      if (value.searchText.isEmpty) {
+        if (value.haveFavorites) {
+          stateSubject.add(MainPageState.favorites);
+        } else {
+          stateSubject.add(MainPageState.noFavorites);
+        }
         stateSubject.add(MainPageState.favorites);
-      } else if (value.length < minSymbols) {
+      } else if (value.searchText.length < minSymbols) {
         stateSubject.add(MainPageState.minSymbols);
       } else {
-        searchForSuperheroes(value);
+        searchForSuperheroes(value.searchText);
       }
     });
   }
@@ -31,7 +45,7 @@ class MainBloc {
   void searchForSuperheroes(final String text) {
     stateSubject.add(MainPageState.loading);
     searchSubscription = search(text).asStream().listen((searchResults) {
-      if(searchResults.isEmpty) {
+      if (searchResults.isEmpty) {
         stateSubject.add(MainPageState.nothingFound);
       } else {
         searchedSuperheroesSubject.add(searchResults);
@@ -42,8 +56,11 @@ class MainBloc {
     });
   }
 
-  Stream<List<SuperheroInfo>> observeFavoritesSuperheroes() => favoriteSuperheroesSubject;
-  Stream<List<SuperheroInfo>> observeSearchedSuperheroes() => searchedSuperheroesSubject;
+  Stream<List<SuperheroInfo>> observeFavoritesSuperheroes() =>
+      favoriteSuperheroesSubject;
+
+  Stream<List<SuperheroInfo>> observeSearchedSuperheroes() =>
+      searchedSuperheroesSubject;
 
   Future<List<SuperheroInfo>> search(final String text) async {
     await Future.delayed(const Duration(seconds: 1));
@@ -131,4 +148,27 @@ class SuperheroInfo {
       imageUrl: "https://www.superherodb.com/pictures2/portraits/10/100/22.jpg",
     ),
   ];
+}
+
+class MainPageStateInfo {
+  final String searchText;
+  final bool haveFavorites;
+
+  MainPageStateInfo(this.searchText, this.haveFavorites);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MainPageStateInfo &&
+          runtimeType == other.runtimeType &&
+          searchText == other.searchText &&
+          haveFavorites == other.haveFavorites;
+
+  @override
+  int get hashCode => searchText.hashCode ^ haveFavorites.hashCode;
+
+  @override
+  String toString() {
+    return 'MainPageStateInfo{searchText: $searchText, haveFavorites: $haveFavorites}';
+  }
 }
