@@ -26,14 +26,13 @@ class MainBloc {
                 (serchedText, favorites) =>
                     MainPageStateInfo(serchedText, favorites.isNotEmpty))
             .listen((value) {
-      print("CHANGED $value");
       if (value.searchText.isEmpty) {
         if (value.haveFavorites) {
           stateSubject.add(MainPageState.favorites);
         } else {
           stateSubject.add(MainPageState.noFavorites);
         }
-        stateSubject.add(MainPageState.favorites);
+        //stateSubject.add(MainPageState.favorites);
       } else if (value.searchText.length < minSymbols) {
         stateSubject.add(MainPageState.minSymbols);
       } else {
@@ -64,7 +63,10 @@ class MainBloc {
 
   Future<List<SuperheroInfo>> search(final String text) async {
     await Future.delayed(const Duration(seconds: 1));
-    return SuperheroInfo.mocked;
+    List<SuperheroInfo> filtered = SuperheroInfo.mocked.where((e) {
+      return e.name.toLowerCase().contains(text.toLowerCase());
+    }).toList();
+    return filtered;
   }
 
   Stream<MainPageState> observeMainPageState() => stateSubject;
@@ -79,6 +81,17 @@ class MainBloc {
 
   void updateText(final String? text) {
     currentTextSubject.add(text ?? "");
+  }
+
+  void removeFavorite() {
+    List<SuperheroInfo> list;
+    if(favoriteSuperheroesSubject.value.isNotEmpty) {
+      list = List.from(favoriteSuperheroesSubject.value);
+      list.removeLast();
+    } else {
+      list = SuperheroInfo.mocked;
+    }
+    favoriteSuperheroesSubject.add(list);
   }
 
   void dispose() {
