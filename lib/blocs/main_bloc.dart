@@ -63,10 +63,9 @@ class MainBloc {
 
   Future<List<SuperheroInfo>> search(final String text) async {
     await Future.delayed(const Duration(seconds: 1));
-    List<SuperheroInfo> filtered = SuperheroInfo.mocked.where((e) {
-      return e.name.toLowerCase().contains(text.toLowerCase());
-    }).toList();
-    return filtered;
+    return SuperheroInfo.mocked
+        .where((superheroInfo) => superheroInfo.name.toLowerCase().contains(text.toLowerCase()))
+        .toList();
   }
 
   Stream<MainPageState> observeMainPageState() => stateSubject;
@@ -84,14 +83,21 @@ class MainBloc {
   }
 
   void removeFavorite() {
-    List<SuperheroInfo> list;
+    final List<SuperheroInfo> currentFavorites = favoriteSuperheroesSubject.value;
+    if(currentFavorites.isEmpty) {
+      favoriteSuperheroesSubject.add(SuperheroInfo.mocked);
+    } else {
+      favoriteSuperheroesSubject.add(currentFavorites.sublist(0, currentFavorites.length - 1));
+    }
+
+    /*List<SuperheroInfo> list;
     if(favoriteSuperheroesSubject.value.isNotEmpty) {
       list = List.from(favoriteSuperheroesSubject.value);
       list.removeLast();
     } else {
       list = SuperheroInfo.mocked;
     }
-    favoriteSuperheroesSubject.add(list);
+    favoriteSuperheroesSubject.add(list);*/
   }
 
   void dispose() {
