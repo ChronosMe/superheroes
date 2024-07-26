@@ -10,15 +10,26 @@ import 'package:superheroes/widgets/action_button.dart';
 import 'package:superheroes/widgets/info_with_button.dart';
 import 'package:superheroes/widgets/superhero_card.dart';
 
+import 'package:http/http.dart' as http;
+
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  final http.Client? client;
+
+  const MainPage({super.key, this.client});
 
   @override
   State<MainPage> createState() => _MainPageState();
 }
 
 class _MainPageState extends State<MainPage> {
-  final MainBloc bloc = MainBloc();
+  late MainBloc bloc;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    bloc = MainBloc(client: widget.client);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +76,7 @@ class SearchWidget extends StatefulWidget {
 class _SearchWidgetState extends State<SearchWidget> {
   final TextEditingController controller = TextEditingController();
   bool haveSearchedText = false;
+  final FocusNode search = FocusNode();
 
   @override
   void initState() {
@@ -76,7 +88,7 @@ class _SearchWidgetState extends State<SearchWidget> {
       controller.addListener(() {
         bloc.updateText(controller.text);
         final haveText = controller.text.isNotEmpty;
-        if(haveSearchedText != haveText) {
+        if (haveSearchedText != haveText) {
           setState(() {
             haveSearchedText = haveText;
           });
@@ -89,6 +101,7 @@ class _SearchWidgetState extends State<SearchWidget> {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      focusNode: search,
       style: const TextStyle(
         fontWeight: FontWeight.w400,
         fontSize: 20,
@@ -122,8 +135,7 @@ class _SearchWidgetState extends State<SearchWidget> {
             borderRadius: BorderRadius.circular(8),
             borderSide: haveSearchedText
                 ? const BorderSide(color: Colors.white, width: 2)
-                : const BorderSide(color: Colors.white24)
-        ),
+                : const BorderSide(color: Colors.white24)),
       ),
     );
   }
@@ -257,8 +269,7 @@ class SuperheroesList extends StatelessWidget {
           final List<SuperheroInfo> superheroes = snapshot.data!;
 
           return ListView.separated(
-            keyboardDismissBehavior:
-            ScrollViewKeyboardDismissBehavior.onDrag,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             itemCount: superheroes.length + 1,
             itemBuilder: (BuildContext context, int index) {
               if (index == 0) {
@@ -283,8 +294,7 @@ class SuperheroesList extends StatelessWidget {
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (context) =>
-                              SuperheroPage(name: item.name)),
+                          builder: (context) => SuperheroPage(name: item.name)),
                     );
                   },
                 ),
@@ -306,14 +316,15 @@ class NothingFoundWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const InfoWithButton(
+    return InfoWithButton(
         title: "Nothing found",
         subtitle: "Search for something else",
         buttonText: "Search",
         assetImage: SuperheroesImages.hulk,
         imageHeight: 112,
         imageWidth: 84,
-        imageTopPadding: 16);
+        imageTopPadding: 16,
+        onTap: () { });
   }
 }
 
@@ -324,7 +335,8 @@ class NoFavoritesWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final MainBloc bloc = Provider.of<MainBloc>(context, listen: false);
-    return const InfoWithButton(
+    return InfoWithButton(
+        onTap: () {},
         title: "No favorites yet",
         subtitle: "Search and add",
         buttonText: "Search",
@@ -341,7 +353,8 @@ class LoadingErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const InfoWithButton(
+    return InfoWithButton(
+        onTap: () {},
         title: "Error happened",
         subtitle: "Please, try again",
         buttonText: "Retry",

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:http/http.dart' as http;
+import 'package:superheroes/exception/api_exception.dart';
 import 'package:superheroes/model/superhero.dart';
 
 class MainBloc {
@@ -17,7 +18,9 @@ class MainBloc {
   StreamSubscription? textSubscription;
   StreamSubscription? searchSubscription;
 
-  MainBloc() {
+  http.Client? client;
+
+  MainBloc({this.client}) {
     stateSubject.add(MainPageState.noFavorites);
 
     searchSubscription?.cancel();
@@ -65,33 +68,52 @@ class MainBloc {
   Stream<List<SuperheroInfo>> observeSearchedSuperheroes() =>
       searchedSuperheroesSubject;
 
+  /// RETRY
+  void retry() {
+
+  }
+
+  /// SEARCH
   Future<List<SuperheroInfo>> search(final String text) async {
-    await Future.delayed(const Duration(seconds: 1));
+    //await Future.delayed(const Duration(seconds: 1));
+
     final token = dotenv.env["SUPERHERO_TOKEN"];
-    final response = await http
+    final response = await (client ??= http.Client())
         .get(Uri.parse("https://superheroapi.com/api/$token/search/$text"));
-    // print(response.statusCode);
-    // print(response.reasonPhrase);
-    // print(response.headers);
-    // print(response.body);
+
     final decoded = json.decode(response.body);
 
-    if (decoded['response'] == 'success') {
-      final List<dynamic> results = decoded['results'];
-      final List<Superhero> superheroes = results
-          .map((rawSuperhero) => Superhero.fromJson(rawSuperhero))
-          .toList();
-      final List<SuperheroInfo> found = superheroes.map((superhero) {
-        return SuperheroInfo(
-            name: superhero.name,
-            realName: superhero.biography.fullName,
-            imageUrl: superhero.image.url);
-      }).toList();
-      return found;
-    } else if (decoded['response'] == 'error') {
-      if (decoded['error'] == 'character with given name not found') {
-        return [];
+    try {
+      int statusCode = response.statusCode;
+      if (statusCode >= 500 && statusCode <= 599) {
+        throw ApiException("Server error happened");
+      } else if (statusCode >= 400 && statusCode <= 499) {
+        throw ApiException("Client error happened");
+      } else if (statusCode == 200 &&
+          decoded['response'] == "error" &&
+          decoded['error'] != "character with given name not found") {
+        throw ApiException("Client error happened");
       }
+
+      if (decoded['response'] == 'success') {
+        final List<dynamic> results = decoded['results'];
+        final List<Superhero> superheroes = results
+            .map((rawSuperhero) => Superhero.fromJson(rawSuperhero))
+            .toList();
+        final List<SuperheroInfo> found = superheroes.map((superhero) {
+          return SuperheroInfo(
+              name: superhero.name,
+              realName: superhero.biography.fullName,
+              imageUrl: superhero.image.url);
+        }).toList();
+        return found;
+      } else if (decoded['response'] == 'error') {
+        if (decoded['error'] == 'character with given name not found') {
+          return [];
+        }
+      }
+    } on ApiException catch (e) {
+      print(e);
     }
 
     throw Exception("Unknown error happened");
@@ -130,6 +152,8 @@ class MainBloc {
 
     textSubscription?.cancel();
     searchSubscription?.cancel();
+
+    client?.close();
   }
 }
 
