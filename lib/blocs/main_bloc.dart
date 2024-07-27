@@ -50,16 +50,20 @@ class MainBloc {
 
   void searchForSuperheroes(final String text) {
     stateSubject.add(MainPageState.loading);
-    searchSubscription = search(text).asStream().listen((searchResults) {
-      if (searchResults.isEmpty) {
-        stateSubject.add(MainPageState.nothingFound);
-      } else {
-        searchedSuperheroesSubject.add(searchResults);
-        stateSubject.add(MainPageState.searchResults);
-      }
-    }, onError: (error, stackTrace) {
-      stateSubject.add(MainPageState.loadingError);
-    });
+    searchSubscription = search(text).asStream().listen(
+      (searchResults) {
+        if (searchResults.isEmpty) {
+          stateSubject.add(MainPageState.nothingFound);
+        } else {
+          searchedSuperheroesSubject.add(searchResults);
+          stateSubject.add(MainPageState.searchResults);
+        }
+      },
+      onError: (error, stackTrace) {
+        print(error);
+        stateSubject.add(MainPageState.loadingError);
+      },
+    );
   }
 
   Stream<List<SuperheroInfo>> observeFavoritesSuperheroes() =>
@@ -70,7 +74,8 @@ class MainBloc {
 
   /// RETRY
   void retry() {
-
+    final currentText = currentTextSubject.value;
+    searchForSuperheroes(currentText);
   }
 
   /// SEARCH
@@ -81,39 +86,32 @@ class MainBloc {
     final response = await (client ??= http.Client())
         .get(Uri.parse("https://superheroapi.com/api/$token/search/$text"));
 
+    if (response.statusCode >= 500 && response.statusCode <= 599) {
+      throw ApiException("Server error happened");
+    }
+    if (response.statusCode >= 400 && response.statusCode <= 499) {
+      throw ApiException("Client error happened");
+    }
+
     final decoded = json.decode(response.body);
 
-    try {
-      int statusCode = response.statusCode;
-      if (statusCode >= 500 && statusCode <= 599) {
-        throw ApiException("Server error happened");
-      } else if (statusCode >= 400 && statusCode <= 499) {
-        throw ApiException("Client error happened");
-      } else if (statusCode == 200 &&
-          decoded['response'] == "error" &&
-          decoded['error'] != "character with given name not found") {
-        throw ApiException("Client error happened");
+    if (decoded['response'] == 'success') {
+      final List<dynamic> results = decoded['results'];
+      final List<Superhero> superheroes = results
+          .map((rawSuperhero) => Superhero.fromJson(rawSuperhero))
+          .toList();
+      final List<SuperheroInfo> found = superheroes.map((superhero) {
+        return SuperheroInfo(
+            name: superhero.name,
+            realName: superhero.biography.fullName,
+            imageUrl: superhero.image.url);
+      }).toList();
+      return found;
+    } else if (decoded['response'] == 'error') {
+      if (decoded['error'] == 'character with given name not found') {
+        return [];
       }
-
-      if (decoded['response'] == 'success') {
-        final List<dynamic> results = decoded['results'];
-        final List<Superhero> superheroes = results
-            .map((rawSuperhero) => Superhero.fromJson(rawSuperhero))
-            .toList();
-        final List<SuperheroInfo> found = superheroes.map((superhero) {
-          return SuperheroInfo(
-              name: superhero.name,
-              realName: superhero.biography.fullName,
-              imageUrl: superhero.image.url);
-        }).toList();
-        return found;
-      } else if (decoded['response'] == 'error') {
-        if (decoded['error'] == 'character with given name not found') {
-          return [];
-        }
-      }
-    } on ApiException catch (e) {
-      print(e);
+      throw ApiException("Client error happened");
     }
 
     throw Exception("Unknown error happened");
